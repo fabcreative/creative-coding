@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Retro Wireframe with Simplex Noise</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #0f0;
+      font-family: monospace;
+      background: rgba(0,0,0,0.5);
+      padding: 8px 12px;
+      border-radius: 4px;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    ←/→: amplitude ↑/↓: speed W/S: frequency
+  </div>
+
+  <!-- Three.js core -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+  <!-- browser‑ready SimplexNoise (v2.4.0) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
+
+  <script>
+    let scene, camera, renderer, mesh, geometry;
+    let noise; 
+    let amplitude = 2, frequency = 0.1, speed = 1;
+
+    init();
+    animate();
+
+    function init() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
+      camera.position.set(0, 20, 30);
+      camera.lookAt(0,0,0);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(devicePixelRatio);
+      renderer.setSize(innerWidth, innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      geometry = new THREE.PlaneGeometry(40, 40, 100, 100);
+      geometry.rotateX(-Math.PI/2);
+      geometry.attributes.position.setUsage(THREE.DynamicDrawUsage);
+
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0x00ff00,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.8
+      });
+      mesh = new THREE.Mesh(geometry, mat);
+      scene.add(mesh);
+
+      // now SimplexNoise is guaranteed global
+      noise = new SimplexNoise();
+
+      window.addEventListener('resize', onResize);
+      window.addEventListener('keydown', onKey);
+    }
+
+    function onResize() {
+      camera.aspect = innerWidth/innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    }
+
+    function onKey(e) {
+      switch(e.code){
+        case 'ArrowUp':    speed     += 0.1; break;
+        case 'ArrowDown':  speed     = Math.max(0.1, speed - 0.1); break;
+        case 'ArrowRight': amplitude += 0.1; break;
+        case 'ArrowLeft':  amplitude = Math.max(0,   amplitude - 0.1); break;
+        case 'KeyW':       frequency += 0.01; break;
+        case 'KeyS':       frequency = Math.max(0.01, frequency - 0.01); break;
+      }
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const t = performance.now() * 0.001 * speed;
+      const pos = geometry.attributes.position;
+      for(let i = 0; i < pos.count; i++){
+        const x = pos.getX(i), z = pos.getZ(i);
+        pos.setY(i, noise.noise3D(x * frequency, z * frequency, t) * amplitude);
+      }
+      pos.needsUpdate = true;
+
+      mesh.rotation.y += 0.0005 * speed;
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+</html>
